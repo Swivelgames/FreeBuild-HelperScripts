@@ -47,6 +47,7 @@ def arg_sub(args,*subs):
 	return [a if not arg_sub_expr.match(a) else subs[int(arg_sub_expr.match(a).group(1))] for a in args]
 
 GIT_PATH = "git"
+SVN_PATH = "svn"
 SKIP_PLUGINS = True
 SKIP_SHARED = True
 
@@ -75,12 +76,26 @@ CRANE_REPO		= "https://github.com/elfprince13/libcrane.git"
 CSS_REPO_1		= "https://github.com/radkovo/jStyleParser.git"
 CSS_REPO_2		= "https://github.com/radkovo/CSSBox.git"
 
+JSYNTAXPANE_REPO	= "http://jsyntaxpane.googlecode.com/svn/branches/r095/"
+JSYNTAXPANE_DIR		= "jSyntaxPane"
+
 INSTALL_ARGS	= ["$0","-nosplash","-data","$1","-application","org.eclipse.equinox.p2.director","-repository","$2","-installIU","$3"]
 #KEYTOOL_ARGS	= ["sudo","$0","-import","-file","$1","-alias","PyDevBrainwy","-keystore","$2"]
+
+def suppress_args(src,to_suppress):
+	return [arg for arg in src if arg not in to_suppress]
+
 GIT_ARGS		= ["$0","$1","$2"]
-CLONE_COMMAND	= "clone"
-UPDATE_COMMAND	= "pull"
-GIT_COMMAND_FOR_EXISTS = {True : UPDATE_COMMAND, False : CLONE_COMMAND}
+GIT_CHECKOUT_COMMAND	= "clone"
+GIT_UPDATE_COMMAND		= "pull"
+GIT_COMMAND_FOR_EXISTS	= {True : GIT_UPDATE_COMMAND, False : GIT_CHECKOUT_COMMAND}
+GIT_SUPPRESS_FOR_EXISTS = {True : {}, False : {}}
+SVN_ARGS				= GIT_ARGS + ["$3"]
+SVN_CHECKOUT_COMMAND	= "checkout"
+SVN_UPDATE_COMMAND		= "update"
+SVN_COMMAND_FOR_EXISTS	= {True : SVN_UPDATE_COMMAND, False : SVN_CHECKOUT_COMMAND}
+SVN_SUPPRESS_FOR_EXISTS	= {True : {"$2"}, False : {}}
+
 PROJECT_IMPORT_ARGS	= ["$0","-nosplash","-data","$1","-application", "org.eclipse.cdt.managedbuilder.core.headlessbuild","-import","$2"]
 
 PLUGINS_TO_INSTALL = [
@@ -94,6 +109,7 @@ PLUGINS_TO_INSTALL = [
 	 "antlr4ide.sdk.feature.group"),
 	("http://repo1.maven.org/maven2/.m2e/connectors/m2eclipse-antlr/0.15.0/N/0.15.0.201405281449/",
 	 "org.sonatype.m2e.antlr.feature.feature.group")
+	# add JDT + Jflex sites for jSyntaxPane
 ]
 
 HELPER_DIR	= os.getcwd()
@@ -159,15 +175,18 @@ if __name__ == '__main__':
 		
 	print("Checking out REPOs")
 	os.chdir(ECLIPSE_WORKSPACE)
-	for repo in [PRIMARY_REPO, PARSER_REPO, SHADER_REPO, CRANE_REPO, CSS_REPO_1, CSS_REPO_2]:
-		exists = os.path.isdir(repodir(repo))
-		if exists:
-			os.chdir(repodir(repo))
-		print " ".join(arg_sub(GIT_ARGS,GIT_PATH,GIT_COMMAND_FOR_EXISTS[exists],repo))
-		code = subprocess.call(arg_sub(GIT_ARGS,GIT_PATH,GIT_COMMAND_FOR_EXISTS[exists],repo))
-		if code: raise RuntimeError("Couldn't fetch repo")
-		if exists:
-			os.chdir(ECLIPSE_WORKSPACE)
+	for protocol,(cmd_path, cmd_args, cmd_for_exists, to_suppress, repo_set) in {"git" : (GIT_PATH, GIT_ARGS, GIT_COMMAND_FOR_EXISTS, GIT_SUPPRESS_FOR_EXISTS, [(r,) for r in [PRIMARY_REPO, PARSER_REPO, SHADER_REPO, CRANE_REPO, CSS_REPO_1, CSS_REPO_2]]),
+		"svn" :  (SVN_PATH, SVN_ARGS, SVN_COMMAND_FOR_EXISTS, SVN_SUPPRESS_FOR_EXISTS, [(JSYNTAXPANE_REPO,JSYNTAXPANE_DIR)])}.iteritems():
+		for repo in repo_set:
+			rdir = repodir(*repo) if protocol == "git" else repo[1]
+			exists = os.path.isdir(rdir)
+			if exists:
+				os.chdir(rdir)
+			print " ".join(arg_sub(suppress_args(cmd_args,to_suppress[exists]),cmd_path,cmd_for_exists[exists],*repo))
+			code = subprocess.call(arg_sub(suppress_args(cmd_args,to_suppress[exists]),cmd_path,cmd_for_exists[exists],*repo))
+			if code: raise RuntimeError("Couldn't fetch repo")
+			if exists:
+				os.chdir(ECLIPSE_WORKSPACE)
 	
 	os.chdir(ECLIPSE_WORKSPACE) # just for fun
 	
