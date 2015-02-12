@@ -159,11 +159,12 @@ if __name__ == '__main__':
 			print "eclipse exited with code",code
 			raise RuntimeError("Couldn't install a plugin(s)!")
 	print('time for dependencies and stuff')
-		
-	os.chdir(ECLIPSE_WORKSPACE)
-	if not os.path.isdir("shared-libs"):
-		os.mkdir("shared-libs")
-	os.chdir("shared-libs")
+
+	os.chdir(ECLIPSE_WORKSPACE)	
+	os.chdir(OWN_PATH)
+	if not os.path.isdir(SHARED_LIBS):
+		os.mkdir(SHARED_LIBS)
+	os.chdir(SHARED_LIBS)
 	if not SKIP_SHARED:
 		fetch(ANTLR4_URL)
 		fetch(JSYNTAXPANE_URL)
