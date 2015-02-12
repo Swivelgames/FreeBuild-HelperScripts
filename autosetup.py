@@ -77,7 +77,7 @@ CSS_REPO_1		= "https://github.com/radkovo/jStyleParser.git"
 CSS_REPO_2		= "https://github.com/radkovo/CSSBox.git"
 
 JSYNTAXPANE_REPO	= "http://jsyntaxpane.googlecode.com/svn/branches/r095/"
-JSYNTAXPANE_DIR		= "jSyntaxPane"
+JSYNTAXPANE_DIR		= "jSyntaxPane" # Too fiddly with current eclipse settings
 
 INSTALL_ARGS	= ["$0","-nosplash","-data","$1","-application","org.eclipse.equinox.p2.director","-repository","$2","-installIU","$3"]
 #KEYTOOL_ARGS	= ["sudo","$0","-import","-file","$1","-alias","PyDevBrainwy","-keystore","$2"]
@@ -176,7 +176,7 @@ if __name__ == '__main__':
 	print("Checking out REPOs")
 	os.chdir(ECLIPSE_WORKSPACE)
 	for protocol,(cmd_path, cmd_args, cmd_for_exists, to_suppress, repo_set) in {"git" : (GIT_PATH, GIT_ARGS, GIT_COMMAND_FOR_EXISTS, GIT_SUPPRESS_FOR_EXISTS, [(r,) for r in [PRIMARY_REPO, PARSER_REPO, SHADER_REPO, CRANE_REPO, CSS_REPO_1, CSS_REPO_2]]),
-		"svn" :  (SVN_PATH, SVN_ARGS, SVN_COMMAND_FOR_EXISTS, SVN_SUPPRESS_FOR_EXISTS, [(JSYNTAXPANE_REPO,JSYNTAXPANE_DIR)])}.iteritems():
+		"svn" :  (SVN_PATH, SVN_ARGS, SVN_COMMAND_FOR_EXISTS, SVN_SUPPRESS_FOR_EXISTS, [])}.iteritems():
 		for repo in repo_set:
 			rdir = repodir(*repo) if protocol == "git" else repo[1]
 			exists = os.path.isdir(rdir)
