@@ -48,7 +48,7 @@ def arg_sub(args,*subs):
 
 GIT_PATH = "git"
 SKIP_PLUGINS = True
-SKIP_SHARED = False
+SKIP_SHARED = True
 
 MVN_PROJECT			= "pom.xml"
 MVN_XMLNS_URL		= "http://maven.apache.org/POM/4.0.0"
@@ -71,15 +71,20 @@ MSP_URL			= "https://today.java.net/sites/all/modules/pubdlcnt/pubdlcnt.php?file
 
 MSP_SUBDIR		= "MultiSplit/src/org"
 
+
+PRIMARY_REPO	= "https://github.com/elfprince13/FreeBuild.git"
+PARSER_REPO		= "https://github.com/elfprince13/LDrawParser.git"
 SHADER_REPO		= "https://github.com/elfprince13/GLSL-Shader-Editor.git"
 CRANE_REPO		= "https://github.com/elfprince13/libcrane.git"
-GLG2D_REPO		= "https://github.com/elfprince13/glg2d.git"
 CSS_REPO_1		= "https://github.com/radkovo/jStyleParser.git"
 CSS_REPO_2		= "https://github.com/radkovo/CSSBox.git"
 
 INSTALL_ARGS	= ["$0","-nosplash","-data","$1","-application","org.eclipse.equinox.p2.director","-repository","$2","-installIU","$3"]
 #KEYTOOL_ARGS	= ["sudo","$0","-import","-file","$1","-alias","PyDevBrainwy","-keystore","$2"]
-GIT_ARGS		= ["$0","clone","$1"]
+GIT_ARGS		= ["$0","$1","$2"]
+CLONE_COMMAND	= "clone"
+UPDATE_COMMAND	= "pull"
+GIT_COMMAND_FOR_EXISTS = {True : UPDATE_COMMAND, False : CLONE_COMMAND}
 PROJECT_IMPORT_ARGS	= ["$0","-nosplash","-data","$1","-application", "org.eclipse.cdt.managedbuilder.core.headlessbuild","-import","$2"]
 
 PLUGINS_TO_INSTALL = [
@@ -95,15 +100,9 @@ PLUGINS_TO_INSTALL = [
 	 "org.sonatype.m2e.antlr.feature.feature.group")
 ]
 
-FREEBUILD_DIR	= os.getcwd()
-FREEBUILD_SUBPROJECTS	= ["LDrawparser","FreeBuildJ"]
+HELPER_DIR	= os.getcwd()
 
-PROJECTS_TO_IMPORT = [
-	os.path.join(ECLIPSE_WORKSPACE,repodir(CSS_REPO_1)),
-	os.path.join(ECLIPSE_WORKSPACE,repodir(CSS_REPO_2)),
-	os.path.join(ECLIPSE_WORKSPACE,repodir(GLG2D_REPO)),
-	os.path.join(ECLIPSE_WORKSPACE,repodir(SHADER_REPO)),
-] + [os.path.join(FREEBUILD_DIR,proj_dir) for proj_dir in FREEBUILD_SUBPROJECTS]
+PROJECTS_TO_IMPORT = [os.path.join(ECLIPSE_WORKSPACE,repodir(repo)) for repo in [PRIMARY_REPO, PARSER_REPO, CSS_REPO_1, CSS_REPO_2, SHADER_REPO]]
 
 #req = Request(PY_DEV_CERT_URL)
 #with closing(urlopen(req)) as response:
@@ -133,7 +132,7 @@ if __name__ == '__main__':
 			raise RuntimeError("Couldn't install a plugin(s)!")
 	print('time for dependencies and stuff')
 		
-	os.chdir("FreeBuildJ")
+	os.chdir(ECLIPSE_WORKSPACE)
 	if not os.path.isdir("shared-libs"):
 		os.mkdir("shared-libs")
 	os.chdir("shared-libs")
@@ -164,10 +163,15 @@ if __name__ == '__main__':
 		
 	print("Checking out REPOs")
 	os.chdir(ECLIPSE_WORKSPACE)
-	for repo in [SHADER_REPO, CRANE_REPO, GLG2D_REPO, CSS_REPO_1, CSS_REPO_2]:
-		print " ".join(arg_sub(GIT_ARGS,GIT_PATH,repo))
-		code = subprocess.call(arg_sub(GIT_ARGS,GIT_PATH,repo))
+	for repo in [PRIMARY_REPO, PARSER_REPO, SHADER_REPO, CRANE_REPO, CSS_REPO_1, CSS_REPO_2]:
+		exists = os.path.isdir(repodir(repo))
+		if exists:
+			os.chdir(repodir(repo))
+		print " ".join(arg_sub(GIT_ARGS,GIT_PATH,GIT_COMMAND_FOR_EXISTS[exists],repo))
+		code = subprocess.call(arg_sub(GIT_ARGS,GIT_PATH,GIT_COMMAND_FOR_EXISTS[exists],repo))
 		if code: raise RuntimeError("Couldn't fetch repo")
+		if exists:
+			os.chdir(ECLIPSE_WORKSPACE)
 		
 	os.chdir(repodir(SHADER_REPO))
 	if not os.path.isdir("multisplitpane"):
