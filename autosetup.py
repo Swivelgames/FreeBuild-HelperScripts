@@ -9,6 +9,23 @@ from contextlib import closing
 import zipfile, StringIO
 from lxml import etree
 
+#######################################################
+# These are settings you should expect to have to edit
+#######################################################
+LWJGL_OS_NAME 		= "macosx"
+SCALA_ECLIPSE_PATH = "/Applications/scala-eclipse/Eclipse.app/Contents/MacOS/eclipse"
+ECLIPSE_JAVA_HOME = "/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/jre"
+ECLIPSE_WORKSPACE = "/Users/thomas/Documents/sc_eclipse_workspace"
+
+SKIP_PLUGINS = True
+SKIP_SHARED = False
+#######################################################
+# Everything below this is fiddly inner-workings
+# and platform-independent resource locations
+#######################################################
+
+
+
 arg_sub_expr = re.compile("\$(\d+)")
 
 def repodir(repo_url):
@@ -58,18 +75,14 @@ def fetch(url,save_name=None,expected_ext=".jar"):
 def arg_sub(args,*subs):
 	return [a if not arg_sub_expr.match(a) else subs[int(arg_sub_expr.match(a).group(1))] for a in args]
 
+
 GIT_PATH = "git"
 SVN_PATH = "svn"
-SKIP_PLUGINS = True
-SKIP_SHARED = False
 
 MVN_PROJECT			= "pom.xml"
 MVN_XMLNS_URL		= "http://maven.apache.org/POM/4.0.0"
 MVN_NSMAP			= {'pom' : MVN_XMLNS_URL}
 
-SCALA_ECLIPSE_PATH = "/Applications/scala-eclipse/Eclipse.app/Contents/MacOS/eclipse"
-ECLIPSE_JAVA_HOME = "/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/jre"
-ECLIPSE_WORKSPACE = "/Users/thomas/Documents/sc_eclipse_workspace"
 
 OWN_PATH = "FreeBuild-HelperScripts"
 SHARED_LIBS = "shared-libs"
@@ -180,7 +193,7 @@ if __name__ == '__main__':
 							vn_dst.write(vn_src.read())
 					print "done."
 				else:
-					print os.path.exists(os.path.basename(VALIDATOR_NU_BIN)),"has already been extracted. Delete cached copy to force re-extraction"
+					print os.path.basename(VALIDATOR_NU_BIN),"has already been extracted. Delete cached copy to force re-extraction"
 			else:
 				print "Can't find JAR (%s) in archive:" % VALIDATOR_NU_BIN
 				print "\n".join("\t%s" % f for f in sorted(parser_zip.namelist()))
@@ -199,16 +212,16 @@ if __name__ == '__main__':
 		fetch(SLICK_URL)
 		
 		UL_PREFIX = "org.eclipse.jdt.core.userLibrary"
-		UL_MAP = {
+		PREF_COMPONENTS = UL_PREFIX.split('.')
+		UL_MAP = {make_clean_suffix(k) : v for k,v in {
 			'ANTLRv4' : [get_save_name_for_fetch(ANTLR4_URL)],
 			'HTMLParserNu' : [os.path.basename(VALIDATOR_NU_BIN)],
 			'JNA' : [get_save_name_for_fetch(JNA_URL)],
 			'Jython 2.7' : [get_save_name_for_fetch(JYTHON_URL)],
 			'SlickUtil' : [get_save_name_for_fetch(SLICK_URL)],
 			'jsyntaxpane' : [get_save_name_for_fetch(JSYNTAXPANE_URL)],
-			'LWJGL' : [(os.path.join(lwjgl_root, "jar/lwjgl.jar"),{"org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" : os.path.join(lwjgl_root, "native")}), os.path.join(lwjgl_root, "jar/lwjgl_util.jar")],
-			'libcrane' : []
-		}
+			'LWJGL' : [(os.path.join(lwjgl_root, "jar/lwjgl.jar"),{"org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" : os.path.join(lwjgl_root, "native/%s" % LWJGL_OS_NAME)}), os.path.join(lwjgl_root, "jar/lwjgl_util.jar")],
+		}.iteritems()}
 		
 		UL_PREFS_PATH = "org.eclipse.core.runtime/.settings/org.eclipse.jdt.core.prefs"
 		WORKSPACE_PLUGINS = ".metadata/.plugins"
@@ -218,15 +231,17 @@ if __name__ == '__main__':
 			with open(UL_PREFS_PATH,'r') as prefs_h:
 				for line in prefs_h.readlines():
 					propName = line.split("=")[0]
-					propPref = ".".join(propName.split(".")[:-1])
-					propSuf = propName.split(".")[-1]
-					if propPref == UL_PREFIX and propSuf in {make_clean_suffix(suf) for suf in UL_MAP.keys()}:
+					propComponents = propName.split('.')
+					cutPoint = len(PREF_COMPONENTS) if len(PREF_COMPONENTS) < len(propComponents) else -1
+					propPref = ".".join(propComponents[:cutPoint])
+					propSuf = ".".join(propComponents[cutPoint:])
+					if propPref == UL_PREFIX and propSuf in UL_MAP:
 						print propName, "is already known by this workspace, not modifying"
 						print "\tWould have installed ",UL_MAP[propSuf]
 						del UL_MAP[propSuf]
 					out_lines += [line]
 		for ul_suf, archives in UL_MAP.iteritems():
-			out_lines += ["%s=%s\n" % (".".join((UL_PREFIX,make_clean_suffix(ul_suf))),
+			out_lines += ["%s=%s\n" % (".".join((UL_PREFIX,ul_suf)),
 									r'<?xml version\="1.0" encoding\="UTF-8"?>\n<userlibrary systemlibrary\="false" version\="2">%s\n</userlibrary>\n' % 
 			("".join([ (r'\n\t<archive path\="%s"/>' % os.path.join("/",OWN_PATH,SHARED_LIBS,archive))
 				if type(archive) == str else
