@@ -69,7 +69,7 @@ MVN_NSMAP			= {'pom' : MVN_XMLNS_URL}
 
 SCALA_ECLIPSE_PATH = "/Applications/scala-eclipse/Eclipse.app/Contents/MacOS/eclipse"
 ECLIPSE_JAVA_HOME = "/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/jre"
-ECLIPSE_WORKSPACE = "/Users/thomas/Documents/scala-workspace-temp"
+ECLIPSE_WORKSPACE = "/Users/thomas/Documents/sc_eclipse_workspace"
 
 OWN_PATH = "FreeBuild-HelperScripts"
 SHARED_LIBS = "shared-libs"
@@ -213,25 +213,26 @@ if __name__ == '__main__':
 		WORKSPACE_PLUGINS = ".metadata/.plugins"
 		os.chdir(os.path.join(ECLIPSE_WORKSPACE, WORKSPACE_PLUGINS))
 		out_lines = []
-		with open(UL_PREFS_PATH,'r') as prefs_h:
-			for line in prefs_h.readlines():
-				propName = line.split("=")[0]
-				propPref = ".".join(propName.split(".")[:-1])
-				propSuf = propName.split(".")[-1]
-				if propPref == UL_PREFIX and propSuf in {make_clean_suffix(suf) for suf in UL_MAP.keys()}:
-					print propName, "is already known by this workspace, not modifying"
-					print "\tWould have installed ",UL_MAP[propSuf]
-					del UL_MAP[propSuf]
-				out_lines += [line]
-			for ul_suf, archives in UL_MAP.iteritems():
-				out_lines += ["%s=%s\n" % (".".join((UL_PREFIX,make_clean_suffix(ul_suf))),
-										r'<?xml version\="1.0" encoding\="UTF-8"?>\n<userlibrary systemlibrary\="false" version\="2">%s\n</userlibrary>\n' % 
-				("".join([ (r'\n\t<archive path\="%s"/>' % os.path.join("/",OWN_PATH,SHARED_LIBS,archive))
-					if type(archive) == str else
-					((r'\n\t<archive path\="%s">\n\t\t<attributes>%s\n\t\t</attributes>\n\t</archive>' % (os.path.join("/",OWN_PATH,SHARED_LIBS,archive[0]),
-					"".join(r'\n\t\t<attribute name\="%s" value\="%s"/>' % (key,os.path.join(OWN_PATH,SHARED_LIBS,value))
-							for key, value in archive[1].iteritems()))))
-						for archive in archives])))]
+		if os.path.exists(UL_PREFS_PATH):
+			with open(UL_PREFS_PATH,'r') as prefs_h:
+				for line in prefs_h.readlines():
+					propName = line.split("=")[0]
+					propPref = ".".join(propName.split(".")[:-1])
+					propSuf = propName.split(".")[-1]
+					if propPref == UL_PREFIX and propSuf in {make_clean_suffix(suf) for suf in UL_MAP.keys()}:
+						print propName, "is already known by this workspace, not modifying"
+						print "\tWould have installed ",UL_MAP[propSuf]
+						del UL_MAP[propSuf]
+					out_lines += [line]
+		for ul_suf, archives in UL_MAP.iteritems():
+			out_lines += ["%s=%s\n" % (".".join((UL_PREFIX,make_clean_suffix(ul_suf))),
+									r'<?xml version\="1.0" encoding\="UTF-8"?>\n<userlibrary systemlibrary\="false" version\="2">%s\n</userlibrary>\n' % 
+			("".join([ (r'\n\t<archive path\="%s"/>' % os.path.join("/",OWN_PATH,SHARED_LIBS,archive))
+				if type(archive) == str else
+				((r'\n\t<archive path\="%s">\n\t\t<attributes>%s\n\t\t</attributes>\n\t</archive>' % (os.path.join("/",OWN_PATH,SHARED_LIBS,archive[0]),
+				"".join(r'\n\t\t<attribute name\="%s" value\="%s"/>' % (key,os.path.join(OWN_PATH,SHARED_LIBS,value))
+						for key, value in archive[1].iteritems()))))
+					for archive in archives])))]
 		with open(UL_PREFS_PATH,'w') as prefs_h:
 			prefs_h.write("".join(out_lines))
 		
