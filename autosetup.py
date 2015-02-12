@@ -14,34 +14,44 @@ arg_sub_expr = re.compile("\$(\d+)")
 def repodir(repo_url):
 	return os.path.splitext(os.path.basename(urlparse(repo_url).path))[0]
 
-def fetch(url,save_data=True,save_name=None,expected_ext=".jar"):
-	req = Request(url)
-	with closing(urlopen(req)) as response:
-		print "Fetching",url,"...\t",
-		sys.stdout.flush()
-		data = response.read()
-		print "done."
-		if save_data:
-			if save_name:
-				fname = save_name
-			else:
-				urlparts = urlparse(url)
-				urlpath = urlparts.path
+
+def get_save_name_for_fetch(url,save_name=None,expected_ext=".jar"):
+	if save_name:
+		fname = save_name
+	else:
+		urlparts = urlparse(url)
+		urlpath = urlparts.path
+		if expected_ext and os.path.splitext(urlpath)[1] == expected_ext:
+			fname = os.path.basename(urlpath)
+		else: # guess what we should call it by looking at the rest of the url
+			for param in urlparts.query.split("&"):
+				kvp = param.split("=")
+				urlpath = kvp[-1]
 				if expected_ext and os.path.splitext(urlpath)[1] == expected_ext:
 					fname = os.path.basename(urlpath)
-				else: # guess what we should call it by looking at the rest of the url
-					for param in urlparts.query.split("&"):
-						kvp = param.split("=")
-						urlpath = kvp[-1]
-						if expected_ext and os.path.splitext(urlpath)[1] == expected_ext:
-							fname = os.path.basename(urlpath)
-							break
-					else:
-						raise RuntimeError("Unable to name file downloaded from %s according to specification." % url)
+					break
+			else:
+				raise RuntimeError("Unable to name file downloaded from %s according to specification." % url)
+	return fname
+
+def fetch(url,save_name=None,expected_ext=".jar"):
+	fname = get_save_name_for_fetch(url,save_name,expected_ext)
+	if not os.path.exists(fname):
+		req = Request(url)
+		with closing(urlopen(req)) as response:
+			print "Fetching",url,"...\t",
+			sys.stdout.flush()
+			data = response.read()
+			print "done."
 			print "Saving as",fname
 			with open(fname, 'wb') as f:
 				f.write(data)
-		else: return data
+			return data
+	else:
+		print fname,"has already been downloaded. Delete cached copy to force a re-fetch."
+		with open(fname,'r') as handle:
+			data = handle.read()
+			return data
 
 def arg_sub(args,*subs):
 	return [a if not arg_sub_expr.match(a) else subs[int(arg_sub_expr.match(a).group(1))] for a in args]
@@ -49,7 +59,7 @@ def arg_sub(args,*subs):
 GIT_PATH = "git"
 SVN_PATH = "svn"
 SKIP_PLUGINS = True
-SKIP_SHARED = True
+SKIP_SHARED = False
 
 MVN_PROJECT			= "pom.xml"
 MVN_XMLNS_URL		= "http://maven.apache.org/POM/4.0.0"
@@ -58,6 +68,10 @@ MVN_NSMAP			= {'pom' : MVN_XMLNS_URL}
 SCALA_ECLIPSE_PATH = "/Applications/scala-eclipse/Eclipse.app/Contents/MacOS/eclipse"
 ECLIPSE_JAVA_HOME = "/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/jre"
 ECLIPSE_WORKSPACE = "/Users/thomas/Documents/scala-workspace-temp"
+
+OWN_PATH = "FreeBuild-HelperScripts"
+SHARED_LIBS = "shared-libs"
+
 #KEYTOOL_PATH = "keytool"
 #PY_DEV_CERT_URL = "http://pydev.org/pydev_certificate.cer"
 ANTLR4_URL 		= "http://www.antlr.org/download/antlr-4.4-complete.jar"
@@ -153,25 +167,71 @@ if __name__ == '__main__':
 		fetch(JSYNTAXPANE_URL)
 		fetch(JYTHON_URL)
 		fetch(JNA_URL)
-		with zipfile.ZipFile(StringIO.StringIO(fetch(VALIDATOR_NU_URL,False)),'r') as parser_zip:
+		with zipfile.ZipFile(StringIO.StringIO(fetch(VALIDATOR_NU_URL,expected_ext=".zip")),'r') as parser_zip:
 			if VALIDATOR_NU_BIN in parser_zip.namelist():
-				print "Extracting...\t",
-				sys.stdout.flush()
-				with parser_zip.open(VALIDATOR_NU_BIN,'r') as vn_src:
-					with open(os.path.basename(VALIDATOR_NU_BIN),'wb') as vn_dst:
-						vn_dst.write(vn_src.read())
-				print "done."
+				if not os.path.exists(os.path.basename(VALIDATOR_NU_BIN)):
+					print "Extracting...\t",
+					sys.stdout.flush()
+					with parser_zip.open(VALIDATOR_NU_BIN,'r') as vn_src:
+						with open(os.path.basename(VALIDATOR_NU_BIN),'wb') as vn_dst:
+							vn_dst.write(vn_src.read())
+					print "done."
+				else:
+					print os.path.exists(os.path.basename(VALIDATOR_NU_BIN)),"has already been extracted. Delete cached copy to force re-extraction"
 			else:
 				print "Can't find JAR (%s) in archive:" % VALIDATOR_NU_BIN
 				print "\n".join("\t%s" % f for f in sorted(parser_zip.namelist()))
-				
-		with zipfile.ZipFile(StringIO.StringIO(fetch(LWJGL_URL,False,expected_ext=".zip")),'r') as lwjgl_zip:
-			print "Extracting all...\t",
-			sys.stdout.flush()
-			lwjgl_zip.extractall()
-			print "done."
+			
+		lwjgl_root = ""	
+		with zipfile.ZipFile(StringIO.StringIO(fetch(LWJGL_URL,expected_ext=".zip")),'r') as lwjgl_zip:
+			lwjgl_root = sorted(lwjgl_zip.namelist())[0]
+			if not os.path.exists(lwjgl_root):
+				print "Extracting all...\t",
+				sys.stdout.flush()
+				lwjgl_zip.extractall()				
+				print "done."
+			else:
+				print lwjgl_root,"has already been extracted. Delete cached copy to force re-extraction"
 		
 		fetch(SLICK_URL)
+		
+		UL_PREFIX = "org.eclipse.jdt.core.userLibrary"
+		UL_MAP = {
+			'ANTLRv4' : [get_save_name_for_fetch(ANTLR4_URL)],
+			'HTMLParserNu' : [os.path.basename(VALIDATOR_NU_BIN)],
+			'JNA' : [get_save_name_for_fetch(JNA_URL)],
+			'Jython' : [get_save_name_for_fetch(JYTHON_URL)],
+			'SlickUtil' : [get_save_name_for_fetch(SLICK_URL)],
+			'jsyntaxpane' : [get_save_name_for_fetch(JSYNTAXPANE_URL)],
+			'LWJGL' : [(os.path.join(lwjgl_root, "jar/lwjgl.jar"),{"org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" : os.path.join(lwjgl_root, "native")}), os.path.join(lwjgl_root, "jar/lwjgl_util.jar")],
+			'libcrane' : []
+		}
+		
+		UL_PREFS_PATH = "org.eclipse.core.runtime/.settings/org.eclipse.jdt.core.prefs"
+		WORKSPACE_PLUGINS = ".metadata/.plugins"
+		os.chdir(os.path.join(ECLIPSE_WORKSPACE, WORKSPACE_PLUGINS))
+		out_lines = []
+		with open(UL_PREFS_PATH,'r') as prefs_h:
+			for line in prefs_h.readlines():
+				propName = line.split("=")[0]
+				propPref = ".".join(propName.split(".")[:-1])
+				propSuf = propName.split(".")[-1]
+				if propPref == UL_PREFIX and propSuf in UL_MAP:
+					print propName, "is already known by this workspace, not modifying"
+					print "\tWould have installed ",UL_MAP[propSuf]
+					del UL_MAP[propSuf]
+				out_lines += [line]
+			for ul_suf, archives in UL_MAP.iteritems():
+				out_lines += ["%s=%s\n" % (".".join((UL_PREFIX,ul_suf)),
+										r'<?xml version\="1.0" encoding\="UTF-8"?>\n<userlibrary systemlibrary\="false" version\="2">%s\n</userlibrary>\n' % 
+				("".join([ (r'\n\t<archive path\="%s"/>' % os.path.join("/",OWN_PATH,SHARED_LIBS,archive))
+					if type(archive) == str else
+					((r'\n\t<archive path\="%s">\n\t\t<attributes>%s\n\t\t</attributes>\n\t</archive>' % (os.path.join("/",OWN_PATH,SHARED_LIBS,archive[0]),
+					"".join(r'\n\t\t<attribute name\="%s" value\="%s"/>' % (key,os.path.join(OWN_PATH,SHARED_LIBS,value))
+							for key, value in archive[1].iteritems()))))
+						for archive in archives])))]
+		with open(UL_PREFS_PATH,'w') as prefs_h:
+			prefs_h.write("".join(out_lines))
 		
 	print("Checking out REPOs")
 	os.chdir(ECLIPSE_WORKSPACE)
@@ -225,5 +285,5 @@ if __name__ == '__main__':
 	#			raise RuntimeError("Couldn't import project %s!" % project_dir)
 			
 	# need to patch in Jython version and User Libraries
-	
+
 
