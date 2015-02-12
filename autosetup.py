@@ -67,10 +67,6 @@ VALIDATOR_NU_URL= "http://about.validator.nu/htmlparser/htmlparser-1.4.zip"
 VALIDATOR_NU_BIN= "htmlparser-1.4/htmlparser-1.4.jar"
 LWJGL_URL		= "http://downloads.sourceforge.net/project/java-game-lib/Official%20Releases/LWJGL%202.9.3/lwjgl-2.9.3.zip"
 SLICK_URL		= "http://slick.ninjacave.com/slick-util.jar"
-MSP_URL			= "https://today.java.net/sites/all/modules/pubdlcnt/pubdlcnt.php?file=/today/2006/03/23/MultiSplit.zip&nid=219663"
-
-MSP_SUBDIR		= "MultiSplit/src/org"
-
 
 PRIMARY_REPO	= "https://github.com/elfprince13/FreeBuild.git"
 PARSER_REPO		= "https://github.com/elfprince13/LDrawParser.git"
@@ -172,24 +168,8 @@ if __name__ == '__main__':
 		if code: raise RuntimeError("Couldn't fetch repo")
 		if exists:
 			os.chdir(ECLIPSE_WORKSPACE)
-		
-	os.chdir(repodir(SHADER_REPO))
-	if not os.path.isdir("multisplitpane"):
-		os.mkdir("multisplitpane")
-	os.chdir("multisplitpane")
 	
-	with zipfile.ZipFile(StringIO.StringIO(fetch(MSP_URL,False,expected_ext=".zip")),'r') as msp_zip:
-		print "Extracting src...\t",
-		sys.stdout.flush()
-		msp_zip.extractall(".",[name for name in msp_zip.namelist() if len(name) >= len(MSP_SUBDIR) and name[:len(MSP_SUBDIR)]==MSP_SUBDIR])
-		junk,src = os.path.split(MSP_SUBDIR)
-		shutil.move(MSP_SUBDIR,src)
-		while junk:
-			shutil.rmtree(junk)
-			junk, src = os.path.split(junk)
-		print "done."
-	
-	os.chdir(ECLIPSE_WORKSPACE)
+	os.chdir(ECLIPSE_WORKSPACE) # just for fun
 	
 	os.chdir(repodir(CRANE_REPO))
 	code = subprocess.call(["make"])
