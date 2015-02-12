@@ -14,6 +14,8 @@ arg_sub_expr = re.compile("\$(\d+)")
 def repodir(repo_url):
 	return os.path.splitext(os.path.basename(urlparse(repo_url).path))[0]
 
+def make_clean_suffix(suf):
+	return suf.replace(" ",r"\ ")
 
 def get_save_name_for_fetch(url,save_name=None,expected_ext=".jar"):
 	if save_name:
@@ -200,7 +202,7 @@ if __name__ == '__main__':
 			'ANTLRv4' : [get_save_name_for_fetch(ANTLR4_URL)],
 			'HTMLParserNu' : [os.path.basename(VALIDATOR_NU_BIN)],
 			'JNA' : [get_save_name_for_fetch(JNA_URL)],
-			'Jython' : [get_save_name_for_fetch(JYTHON_URL)],
+			'Jython 2.7' : [get_save_name_for_fetch(JYTHON_URL)],
 			'SlickUtil' : [get_save_name_for_fetch(SLICK_URL)],
 			'jsyntaxpane' : [get_save_name_for_fetch(JSYNTAXPANE_URL)],
 			'LWJGL' : [(os.path.join(lwjgl_root, "jar/lwjgl.jar"),{"org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" : os.path.join(lwjgl_root, "native")}), os.path.join(lwjgl_root, "jar/lwjgl_util.jar")],
@@ -216,13 +218,13 @@ if __name__ == '__main__':
 				propName = line.split("=")[0]
 				propPref = ".".join(propName.split(".")[:-1])
 				propSuf = propName.split(".")[-1]
-				if propPref == UL_PREFIX and propSuf in UL_MAP:
+				if propPref == UL_PREFIX and propSuf in {make_clean_suffix(suf) for suf in UL_MAP.keys()}:
 					print propName, "is already known by this workspace, not modifying"
 					print "\tWould have installed ",UL_MAP[propSuf]
 					del UL_MAP[propSuf]
 				out_lines += [line]
 			for ul_suf, archives in UL_MAP.iteritems():
-				out_lines += ["%s=%s\n" % (".".join((UL_PREFIX,ul_suf)),
+				out_lines += ["%s=%s\n" % (".".join((UL_PREFIX,make_clean_suffix(ul_suf))),
 										r'<?xml version\="1.0" encoding\="UTF-8"?>\n<userlibrary systemlibrary\="false" version\="2">%s\n</userlibrary>\n' % 
 				("".join([ (r'\n\t<archive path\="%s"/>' % os.path.join("/",OWN_PATH,SHARED_LIBS,archive))
 					if type(archive) == str else
