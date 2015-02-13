@@ -13,9 +13,9 @@ from lxml import etree
 # These are settings you should expect to have to edit
 #######################################################
 LWJGL_OS_NAME 		= "macosx"
-SCALA_ECLIPSE_PATH = "/Applications/scala-eclipse/Eclipse.app/Contents/MacOS/eclipse"
+SCALA_ECLIPSE_PATH = "/Applications/eclipse-scala2.11/Eclipse.app/Contents/MacOS/eclipse"
 ECLIPSE_JAVA_HOME = "/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/jre"
-ECLIPSE_WORKSPACE = "/Users/thomas/Documents/sc_eclipse_workspace"
+ECLIPSE_WORKSPACE = "/Users/thomas/Documents/sc2.11_eclipse_workspace"
 
 SKIP_PLUGINS = True
 SKIP_SHARED = False
