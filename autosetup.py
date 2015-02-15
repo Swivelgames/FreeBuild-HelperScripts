@@ -72,6 +72,22 @@ def fetch(url,save_name=None,expected_ext=".jar"):
 			data = handle.read()
 			return data
 
+def fetch_jar_from_zip(zipurl, jarpath):
+		with zipfile.ZipFile(StringIO.StringIO(fetch(zipurl,expected_ext=".zip")),'r') as fetched_zip:
+			if jarpath in fetched_zip.namelist():
+				if not os.path.exists(os.path.basename(jarpath)):
+					print "Extracting...\t",
+					sys.stdout.flush()
+					with fetched_zip.open(jarpath,'r') as vn_src:
+						with open(os.path.basename(jarpath),'wb') as vn_dst:
+							vn_dst.write(vn_src.read())
+					print "done."
+				else:
+					print os.path.basename(jarpath),"has already been extracted. Delete cached copy to force re-extraction"
+			else:
+				print "Can't find JAR (%s) in archive:" % jarpath
+				print "\n".join("\t%s" % f for f in sorted(fetched_zip.namelist()))
+
 def arg_sub(args,*subs):
 	return [a if not arg_sub_expr.match(a) else subs[int(arg_sub_expr.match(a).group(1))] for a in args]
 
@@ -97,6 +113,9 @@ VALIDATOR_NU_URL= "http://about.validator.nu/htmlparser/htmlparser-1.4.zip"
 VALIDATOR_NU_BIN= "htmlparser-1.4/htmlparser-1.4.jar"
 LWJGL_URL		= "http://downloads.sourceforge.net/project/java-game-lib/Official%20Releases/LWJGL%202.9.3/lwjgl-2.9.3.zip"
 SLICK_URL		= "http://slick.ninjacave.com/slick-util.jar"
+
+COMMONS_IO_URL	= "http://www.gtlib.gatech.edu/pub/apache//commons/io/binaries/commons-io-2.4-bin.zip"
+COMMONS_IO_BIN	= "commons-io-2.4/commons-io-2.4.jar"
 
 PRIMARY_REPO	= "https://github.com/elfprince13/FreeBuild.git"
 PARSER_REPO		= "https://github.com/elfprince13/LDrawParser.git"
@@ -183,20 +202,8 @@ if __name__ == '__main__':
 		fetch(JSYNTAXPANE_URL)
 		fetch(JYTHON_URL)
 		fetch(JNA_URL)
-		with zipfile.ZipFile(StringIO.StringIO(fetch(VALIDATOR_NU_URL,expected_ext=".zip")),'r') as parser_zip:
-			if VALIDATOR_NU_BIN in parser_zip.namelist():
-				if not os.path.exists(os.path.basename(VALIDATOR_NU_BIN)):
-					print "Extracting...\t",
-					sys.stdout.flush()
-					with parser_zip.open(VALIDATOR_NU_BIN,'r') as vn_src:
-						with open(os.path.basename(VALIDATOR_NU_BIN),'wb') as vn_dst:
-							vn_dst.write(vn_src.read())
-					print "done."
-				else:
-					print os.path.basename(VALIDATOR_NU_BIN),"has already been extracted. Delete cached copy to force re-extraction"
-			else:
-				print "Can't find JAR (%s) in archive:" % VALIDATOR_NU_BIN
-				print "\n".join("\t%s" % f for f in sorted(parser_zip.namelist()))
+		fetch_jar_from_zip(VALIDATOR_NU_URL,VALIDATOR_NU_BIN)
+		fetch_jar_from_zip(COMMONS_IO_URL, COMMONS_IO_BIN)
 			
 		lwjgl_root = ""	
 		with zipfile.ZipFile(StringIO.StringIO(fetch(LWJGL_URL,expected_ext=".zip")),'r') as lwjgl_zip:
@@ -215,12 +222,16 @@ if __name__ == '__main__':
 		PREF_COMPONENTS = UL_PREFIX.split('.')
 		UL_MAP = {make_clean_suffix(k) : v for k,v in {
 			'ANTLRv4' : [get_save_name_for_fetch(ANTLR4_URL)],
+			'Apache Commons IO' : [os.path.basename(COMMONS_IO_BIN)],
 			'HTMLParserNu' : [os.path.basename(VALIDATOR_NU_BIN)],
 			'JNA' : [get_save_name_for_fetch(JNA_URL)],
-			'Jython 2.7' : [get_save_name_for_fetch(JYTHON_URL)],
-			'SlickUtil' : [get_save_name_for_fetch(SLICK_URL)],
 			'jsyntaxpane' : [get_save_name_for_fetch(JSYNTAXPANE_URL)],
-			'LWJGL' : [(os.path.join(lwjgl_root, "jar/lwjgl.jar"),{"org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" : os.path.join(lwjgl_root, "native/%s" % LWJGL_OS_NAME)}), os.path.join(lwjgl_root, "jar/lwjgl_util.jar")],
+			'Jython 2.7' : [get_save_name_for_fetch(JYTHON_URL)],
+			'LWJGL' : [(os.path.join(lwjgl_root, "jar/lwjgl.jar"),
+						{
+							"org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" : os.path.join(lwjgl_root, "native/%s" % LWJGL_OS_NAME)
+						}), os.path.join(lwjgl_root, "jar/lwjgl_util.jar")],
+			'SlickUtil' : [get_save_name_for_fetch(SLICK_URL)],
 		}.iteritems()}
 		
 		UL_PREFS_PATH = "org.eclipse.core.runtime/.settings/org.eclipse.jdt.core.prefs"
